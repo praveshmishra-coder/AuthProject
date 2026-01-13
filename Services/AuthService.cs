@@ -63,7 +63,9 @@ namespace Auth_WebAPI.Services
                 // Token creation logic would go here (e.g., JWT generation)
                 var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, user.Username)
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Role, user.Roles)
             };
 
                 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(

@@ -45,6 +45,13 @@ namespace Auth_WebAPI.Controllers
             return "You are authorized to access this endpoint.";
         }
 
+        [HttpGet("Admin-endpoint")]
+        [Authorize (Roles ="Admin")]
+        public ActionResult<string> AdminCheck()
+        {
+            return "You are admin";
+        }
+
 
     } 
 
