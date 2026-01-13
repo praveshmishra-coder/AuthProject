@@ -2,10 +2,12 @@
 using Auth_WebAPI.Entities;
 using Auth_WebAPI.Model;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 
@@ -38,7 +40,7 @@ namespace Auth_WebAPI.Services
                 return user;
             }
          
-            public async Task<string?> LoginAsync(UserDto request)
+            public async Task<TokenResponseDto?> LoginAsync(UserDto request)
             {
                 User? user = await context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
                 if(user is null)
@@ -50,15 +52,28 @@ namespace Auth_WebAPI.Services
                 {
                     return null;
                 }
-                // Registration logic would go here (e.g., save user to database)
-                user.Username = request.Username;
-                user.PasswordHash = new PasswordHasher<User>().HashPassword(user, request.Password);
-
-                string token = CreateToken(user);
+                var token = new TokenResponseDto
+                {
+                    AccessToken = CreateToken(user),
+                    RefreshToken = await GenerateAndSaveRefreshToken(user, DateTime.UtcNow)
+                };
+                
                 return token;
             }
 
-            private string CreateToken(User user)
+            private async Task<string> GenerateAndSaveRefreshToken(User user, DateTime dateTime)
+            {
+                var randomNumber = new byte[32];
+                using var rng = RandomNumberGenerator.Create();
+                rng.GetBytes(randomNumber);
+                var refreshToken = Convert.ToBase64String(randomNumber);
+                user.RefreshToken = refreshToken; 
+                user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(1);
+                await context.SaveChangesAsync();
+                return refreshToken;
+        }
+
+        private string CreateToken(User user)
             {
                 // Token creation logic would go here (e.g., JWT generation)
                 var claims = new List<Claim>
@@ -83,5 +98,20 @@ namespace Auth_WebAPI.Services
                 return new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
 
             }
+
+        public async Task<TokenResponseDto?> RefreshTokenAsync(RefreshTokenRequestDto request)
+        {
+            var user = await context.Users.FindAsync(request.UserId);
+            if (user is null || user.RefreshToken != request.RefreshToken || user.RefreshTokenExpiry <= DateTime.UtcNow)
+            {
+                return null; // Invalid token
+            }
+            var token = new TokenResponseDto
+            {
+                AccessToken = CreateToken(user),
+                RefreshToken = await GenerateAndSaveRefreshToken(user, DateTime.UtcNow)
+            };
+            return token;
         }
+    }
 }
