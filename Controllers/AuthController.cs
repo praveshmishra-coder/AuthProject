@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Auth_WebAPI.Model;
 using Auth_WebAPI.Services;
+using Microsoft.AspNetCore.Authorization; 
 
 namespace Auth_WebAPI.Controllers
 {
@@ -37,7 +38,14 @@ namespace Auth_WebAPI.Controllers
             return Ok(token);
         }
 
-       
+        [HttpGet("Auth-endpoint")]
+        [Authorize]
+        public ActionResult<string> GetSecret()
+        {
+            return "You are authorized to access this endpoint.";
+        }
+
+
     } 
 
 }
